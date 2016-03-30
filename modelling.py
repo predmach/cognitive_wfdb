@@ -4,7 +4,7 @@
 # Copyright (c) 2016 Predictive Machines, LLC
 
 '''
-	modelling - ECG data processing, analysis, validation, and visualization
+	hyper - ECG data processing, analysis, validation, and visualization
 
 	generate_all_sample_record_intervals	- generate features for ML
 	hyperparameter_search 					- grid search the hyperparameter space
@@ -28,54 +28,6 @@ from sklearn.metrics import classification_report
 
 from wfdb import *
 from analysis import *
-
-
-def generate_all_sample_record_intervals(anEcgDataFrame, anEqualSampling=True):
-	'''
-	grab records from HDS5 Datastore, process into huge set of feature vectors
-
-	Args:
-		anEcgDataFrame : mitDB data
-		anEqualSampling : make equal number of each class
-
-	Returns:
-		DataFrame
-	'''
-
-	# get a list of all the recordings
-	ecgFilter = filter(lambda x: re.search('ECG_Record_', x), anEcgDataFrame.keys())
-	ecgDataFrames = [anEcgDataFrame[k] for k in ecgFilter] # replace with equery
-	
-	# generate all the sample data intervals for each record that has arrythmias
-	# each record will have time around each annotated event
-	# also, derived features are around each event
-	mlStage = DataFrame()
-	for record in ecgDataFrames:
-		if record.arrythmia_events.sum() > 1:
-			if len(record[record.arrythmia_events == 1].index) == 0:
-				continue
-
-			recordSamples = generate_normal_and_arrythmia_samples(record)
-			mlStage = pd.concat([mlStage, recordSamples ])
-
-	mlStage.reset_index(drop=True, inplace=True)
-
-	if len(mlStage.index) == 0 :
-		print("no arrythmia records, nothing to learn...")
-		return
-
-	''' Reduce the number of normal samples to match the number of arrithmia samples
-	'''
-	if anEqualSampling:
-		mask = mlStage['labels'] == 1 							# 1 = arrythmia
-		size = mlStage[mask].shape[0]							# total arrythmias
-		randNormIndex = np.random.choice(mlStage[~mask].index, size) 	# grab random normal
-		index = np.concatenate([randNormIndex, mlStage[mask].index])	# 
-		mlStage = mlStage.ix[index]
-		mlStage.reset_index(drop=True, inplace=True)
-		
-	return mlStage
-
 
 def hyperparameter_search(clf, params, x_train, y_train, x_val, y_val, cols,cv=5):
 	'''
@@ -150,7 +102,6 @@ def main():
 	pass
 
 __all__ = [
-	'generate_all_sample_record_intervals',
 	'hyperparameter_search',
 	'search_grid'
 ]

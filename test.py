@@ -43,29 +43,9 @@ from sklearn.cross_validation import train_test_split
 from sklearn.metrics import classification_report
 
 from wfdb import *
-from analysis import *
-from modelling import *
+import mitdb
+from hyper import *
 from learning import *
-
-
-def load_all_data(aMitDbDir, aStagingDir, anHdfDir, anHdfFilename):
-	'''
-	a big loader, all routines are incremental, so you can kill and restart
-
-	Args:
-		aMitDbDir 		: raw data goes in this directory
-		aStagingDir 	: the raw data is converted to csv & txt here
-		anHdfDir 		: where the HDF is stored
-		anHdfFilename 	: fullpath (i know...) to HDF5 file
-
-	Returns:
-		DataFrame
-	'''
-	#setup_data_directories(mitdb_dir,stage_dir,hdf_dir)
-	raw_data_staging_and_persistance(aMitDbDir,aStagingDir,anHdfFilename)
-	ecgDataframe = pd.HDFStore(anHdfFilename)
-	return ecgDataframe
-
 
 def exampleKernelDensity(samples, labels, columns):
 
@@ -175,7 +155,7 @@ def main():
 		os.mkdir('data')
 	except:
 		pass
-
+	'''
 	# setup_data_directories(mitdb_dir, stage_dir, hdf_dir)
 	df = load_all_data(mitdb_dir, stage_dir, hdf_dir, hdf_filename)
 
@@ -187,7 +167,19 @@ def main():
 
 	print('Executing Random Forest on raw milivolts....')
 	exampleRandomForest(milivoltFeatures, labels, columns)
-
+	'''
+	df = mitdb.load_all_data(mitdb_dir, stage_dir, hdf_dir, hdf_filename)
+	'''
+	download_physionet_files('mitdb',mitdb_dir)
+	convert_physionet_data_to_csv('mitdb',mitdb_dir, stage_dir)
+ 	mitdb.build_hdf5_data_store(stage_dir, hdf_filename)
+ 	df = pd.HDFStore(hdf_filename)
+ 	'''
+	samples = extract_and_stage_ml(df,anEqualSampling=True, useCached=True)
+	print('isolate_max_var_features....')
+	maxVarFeatures, labels, columns = isolate_max_var_features(samples)
+	print('isolate_millivolt_features....')
+	milivoltFeatures, labels, columns = isolate_millivolt_features(samples)
 
 	'''
 	print('Executing Random Forest on max,var....')
