@@ -37,7 +37,7 @@ from sklearn.cross_validation import train_test_split
 from sklearn.metrics import classification_report
 
 from wfdb import *
-from mitdb import *
+
 
 
 def extract_and_stage_ml(anEcgDataFrame, anEqualSampling=True, useCached=True):

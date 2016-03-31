@@ -43,7 +43,7 @@ from sklearn.cross_validation import train_test_split
 from sklearn.metrics import classification_report
 
 from wfdb import *
-import mitdb
+from features import *
 from hyper import *
 from learning import *
 
@@ -168,11 +168,11 @@ def main():
 	print('Executing Random Forest on raw milivolts....')
 	exampleRandomForest(milivoltFeatures, labels, columns)
 	'''
-	df = mitdb.load_all_data(mitdb_dir, stage_dir, hdf_dir, hdf_filename)
+	df = load_all_data('mitdb',mitdb_dir, stage_dir, hdf_dir, hdf_filename)
 	'''
 	download_physionet_files('mitdb',mitdb_dir)
 	convert_physionet_data_to_csv('mitdb',mitdb_dir, stage_dir)
- 	mitdb.build_hdf5_data_store(stage_dir, hdf_filename)
+ 	build_hdf5_data_store(stage_dir, hdf_filename)
  	df = pd.HDFStore(hdf_filename)
  	'''
 	samples = extract_and_stage_ml(df,anEqualSampling=True, useCached=True)

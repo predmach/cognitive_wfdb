@@ -52,7 +52,7 @@ def setup_data_directories(aRawDirectory, aStageDirectory, aDataStoreName):
 	#shutil.rmtree(aDataStoreName,True)
 	os.mkdir(aRawDirectory)
 	os.mkdir(aStageDirectory)
-	
+
 #!! CHANGE THIS FOR SUBSTRING SEARCH
 def has_words(aTestString, aKeyList):
 
@@ -62,7 +62,47 @@ def has_words(aTestString, aKeyList):
 			return True
 	return False
 
+def download_annotation_metadata():
+	'''
+	
 
+	Args:
+		None
+
+	Returns:
+		DataFrame
+	'''
+
+	# Scrape annotation table frm MIT_-BIH info page
+	annotationURL = 'https://www.physionet.org/physiobank/database/html/mitdbdir/intro.htm#annotations'
+	htmlAnnotations = requests.get(annotationURL).content
+	scraper = BeautifulSoup(htmlAnnotations, "lxml")
+	tableElements = scraper.select('table')[-1]
+
+	# 
+	metadata = pd.read_html(str(tableElements), header=0)[0]
+	mask = metadata.Symbol.apply(lambda x: True) 
+	mask.ix[[20,36]] = False
+	metadata = metadata[mask]
+
+	metadata.reset_index(drop=True, inplace=True)
+	metadata.loc[0, 'Symbol'] = 'N'
+	metadata.loc[37, 'Symbol'] = 'M'
+	metadata.loc[38, 'Symbol'] = 'P'
+	metadata.loc[39, 'Symbol'] = 'T'
+
+	
+	lut = {
+		'artifact':  ['artifact', 'Unclassified', 'Non-conducted', 'Fusion'],
+		'arrythmia': ['flutter', 'bigeminy', 'tachycardia', 'fibrillation'],
+		'other':     ['bradycardia', 'Abberated', 'Premature', 'escape'],
+		'signal':    ['Signal quality', 'Extreme noise', 'Missed beat', 'Pause', 'Tape slippage']
+	}
+
+	for i in lut.keys():	
+		metadata[i] = metadata.Meaning.apply(lambda x: has_words(x, lut[i]))
+
+	return metadata
 
 
 def download_physionet_files( aDatabase='mghdb', aTargetDataDirectory='./data', shouldClean=False, useExtensions=['atr','dat','hea'] ):
@@ -167,6 +207,101 @@ def convert_physionet_data_to_csv( aDatabase, aSourceDirectory, aTargetDirectory
 		conversionProcess.communicate()
  
 
+def import_sample_data(aSampleFile):
+	'''
+	
+
+	Args:
+		aSampleFile :  CSV PHYSIONET data
+
+	Returns:
+		Pandas data frame
+	'''
+
+	dataframe = pd.read_csv(aSampleFile, skiprows=2) # , encoding='utf-16', header=None)
+	dataframe.columns = ['Elapsed_Microseconds', 'MLII_milliVolts', 'V5_milliVolts']
+	dataframe.reset_index(drop=True, inplace=True)
+	dataframe = dataframe.ix[1:] # or, skip above
+	dataframe.reset_index(drop=True, inplace=True)
+
+	# Set data types	
+	dataframe.MLII_milliVolts = dataframe.MLII_milliVolts.astype(float)
+	dataframe.V5_milliVolts = dataframe.V5_milliVolts.astype(float)
+	
+	# Change the time to a zero base and apply as the index of the data frame
+	baseTime = datetime.strptime('00:00.00', '%M:%S.%f')
+	dataframe.index = dataframe.Elapsed_Microseconds.apply(lambda x: datetime.strptime(x[1:-1], '%M:%S.%f') - baseTime)
+	dataframe.drop('Elapsed_Microseconds', axis=1, inplace=True)
+
+	return dataframe
+
+def import_annotation_data(anAnnotationFile):
+	'''
+	
+	Args:
+		anAnnotationFile : 
+
+	Returns:
+		DataFrame
+	'''
+	dataframe = pd.read_table(anAnnotationFile, sep='\s\s+|\t| C')
+	dataframe.columns = ['Elapsed_Microseconds', 'Sample_num', 'Type', 'Sub', 'Chan', 'Num', 'Aux']
+
+	# Change the time to a zero base and apply as the index of the data frame
+	baseTime = datetime.strptime('00:00.00', '%M:%S.%f')
+	dataframe.index = dataframe.Elapsed_Microseconds.apply(lambda x: datetime.strptime(x, '%M:%S.%f') - baseTime)
+	dataframe.drop('Elapsed_Microseconds', axis=1, inplace=True)
+	
+	dataframe.Sample_num = dataframe.Sample_num.astype(int)
+	dataframe.Sub = dataframe.Sub.astype(int)
+	dataframe.Chan = dataframe.Chan.astype(int)
+	dataframe.Num = dataframe.Num.astype(int)
+	
+	return dataframe
+
+
+def import_samples_and_annotations(aSampleCsvFile, anAnnotationTxtFile, aMetadataSet):
+	'''
+	
+
+	Args:
+		aSampleCsvFile : MIT-BIH file
+		anAnnotationTxtFile : 
+
+	Returns:
+		Pandas data frame
+	'''
+
+	# load samples and annotations, then merge them using timestamp into a single frame
+	sampleDataFrame = import_sample_data(aSampleCsvFile)
+	annotationDataFrame = import_annotation_data(anAnnotationTxtFile)
+	df = pd.concat([sampleDataFrame,annotationDataFrame], axis=1)
+	
+	#  Convert Type and Aux to integer values
+	# Labels from MIT-BIH site
+	arrythmiaSymbols = aMetadataSet[aMetadataSet.arrythmia].Symbol.tolist()
+	normalSymbols = ['N', 'L', 'R']
+
+	labels = ['arrythmia','normal']
+	symbolSets = [arrythmiaSymbols,normalSymbols]
+	annotationList = ['Type','Aux']
+
+	for label, symbols in zip(labels,symbolSets):
+
+		eventName = label+'_events'
+		df[eventName] = 0
+
+		for annotation in annotationList:
+			df[eventName] = df.apply( lambda x: 1 if x[annotation] in symbols else x[eventName], axis=1)
+
+	# add up each, just to see...
+	print('calculating event occurances...')
+	for label in labels:
+		numEvents = len(df[df[label+'_events'] == 1].index)
+		print( '{0} {1} events'.format(numEvents, label))
+
+	return df
+
 def record_needs_update(aRecordName, aSampleFile, anAnnotationFile, aTargetHDF5):
 	'''
 	use an import data frame to keep track of the timestamps on the source files,
@@ -216,63 +351,6 @@ def generate_time_interval(aFormatString=None, hours=0, minutes=0, seconds=0, mi
 
 	return datetime.strptime(aFormatString, '%H:%M:%S.%f') - datetime.strptime('0:0:0.0', '%H:%M:%S.%f')
 
-def max_amplitude_filter(aSingleChannel):
-	'''
-	
-
-	Args:
-		aSingleChannel  :	  DataFrame
-
-	Returns:
-		filtered (list): temporal list of filtered values, peaks accentuated
-	'''
-
-	modeFit = pd.rolling_kurt(aSingleChannel, 100)
-	stdDev = pd.rolling_std(aSingleChannel - pd.rolling_mean(aSingleChannel, 10), 10)
-	return aSingleChannel * modeFit * stdDev
-
-def generate_sample_intervals(aDataFrame, aTimeIndex, aLabel, aStartInterval, anEndInterval,
-		aColumnList):
-	'''
-	
-
-	Args:
-		aDataFrame : time series data
-		aTimeIndex : index of events in data
-		aLabel : class to associate with these events
-		aStartInterval : how far back to go 
-
-
-	Returns:
-		DataFrame
-	'''
-
-	# for each event, generate an interval around it
-	startIntervalList = aTimeIndex - aStartInterval
-	endIntervalList = aTimeIndex + anEndInterval
-
-	intervals = zip(startIntervalList,endIntervalList)
-	sampleIntervals = []
-
-	# for each event interval, save off series data and also features
-	for start,end in intervals[1:]:
-
-		# all mV values in a single series
-		intervalSamples = aDataFrame.loc[start:end, aColumnList]
-		intervalSeries = Series(intervalSamples.as_matrix().ravel())
-
-		# enhance features in each lead series
-		# save off the max and var
-		for signalName in aColumnList:
-			lead_filtered = max_amplitude_filter(intervalSamples[signalName])
-			intervalSeries[signalName+'_max'] = lead_filtered.max()
-			intervalSeries[signalName+'_var'] = lead_filtered.var()
-		
-		intervalSeries['labels'] = aLabel
-		
-		sampleIntervals.append(intervalSeries)
-	
-	return DataFrame(sampleIntervals)
 
 
 def main():
@@ -280,13 +358,16 @@ def main():
 
 __all__ = [
 	'has_words',
+	'download_annotation_metadata',
 	'download_physionet_files',
 	'convert_physionet_data_to_csv',
+	'import_sample_data',
+	'import_annotation_data',
+	'import_samples_and_annotations',
 	'record_needs_update',
 	'setup_data_directories',
-	'generate_time_interval',
-	'generate_sample_intervals',
-	'max_amplitude_filter'
+	'generate_time_interval'
+
 ]
 
 if __name__ == '__main__':
