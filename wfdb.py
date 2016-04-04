@@ -84,8 +84,11 @@ def download_annotation_metadata():
 	mask = metadata.Symbol.apply(lambda x: True) 
 	mask.ix[[20,36]] = False
 	metadata = metadata[mask]
+	metadata['Symbol'] = metadata['Symbol'].astype(basestring)
+
 
 	metadata.reset_index(drop=True, inplace=True)
+
 	metadata.loc[0, 'Symbol'] = 'N'
 	metadata.loc[37, 'Symbol'] = 'M'
 	metadata.loc[38, 'Symbol'] = 'P'
