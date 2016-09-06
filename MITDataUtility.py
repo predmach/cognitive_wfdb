@@ -17,12 +17,27 @@ from features import *
 import subprocess
 import StringIO
 import csv
+import requests
+import tarfile
 
 def fetchSampleDataWithAnnotations(aSourceDataDirectory, dbname, starttime, endtime):
-    scriptPath = os.path.realpath(os.path.dirname(aSourceDataDirectory))
-    os.chdir(scriptPath)
+    #print(aSourceDataDirectory);
+    #scriptPath = os.path.realpath(os.path.dirname(aSourceDataDirectory))
+    #print(scriptPath);
+    #os.chdir(scriptPath)
+    if aSourceDataDirectory:
+        os.chdir(aSourceDataDirectory)
     dbname = dbname.replace('mitdb/','')
     stageDir = "data/stage_data"
+    #If Staging data not available then download it from s3  (precomputed)
+    if not os.path.isdir(stageDir):
+        if not os.path.isfile('cached_eq_ml_data.hdf'):
+            download_file('https://s3.amazonaws.com/helios-wfdb-precompute/cached_eq_ml_data.hdf')
+        if not os.path.isfile(data.tar.gz):
+            dataTar = download_file('https://s3.amazonaws.com/helios-wfdb-precompute/data.tar.gz')
+            tfile = tarfile.open("data.tar.gz",'r:gz')
+            tfile.extractall()
+
     allRawDataFiles = os.listdir(stageDir)
     sampleFiles = filter(lambda x: True if re.search(dbname+'.csv$', x) else False,allRawDataFiles)
     if not sampleFiles:
@@ -111,12 +126,25 @@ def parseDataColumn(strRow, columnCount):
 
     return columnData
 
+def download_file(url):
+    local_filename = url.split('/')[-1]
+    # NOTE the stream=True parameter
+    r = requests.get(url, stream=True)
+    with open(local_filename, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=1024):
+            if chunk: # filter out keep-alive new chunks
+                f.write(chunk)
+                #f.flush() commented by recommendation from J.F.Sebastian
+    return local_filename
+
 def main(args):
     if(len(args) < 3):
         print("Usage:MITDataUtility.py <dbname> <starttime> <endtime>")
         return
+
     #data = fetchSampleDataWithAnnotations('data/stage_data', '200', '5:00', '5:10')
-    data = fetchSampleDataWithAnnotations('/home/ubuntu/cognitive_wfdb/', args[0], args[1], args[2])
+    data = fetchSampleDataWithAnnotations(os.path.dirname(__file__), args[0], args[1], args[2])
+    #data = fetchSampleDataWithAnnotations('/opt/cognitive_wfdb/', args[0], args[1], args[2])
     print(data)
 '''
 Note: Run from root directory

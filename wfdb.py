@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Charles Pace 
+# Charles Pace
 
 # Copyright (c) 2016 Predictive Machines, LLC
 
@@ -52,6 +52,7 @@ def setup_data_directories(aRawDirectory, aStageDirectory, aDataStoreName):
 	#shutil.rmtree(aDataStoreName,True)
 	os.mkdir(aRawDirectory)
 	os.mkdir(aStageDirectory)
+	os.mkdir(aDataStoreName)
 
 #!! CHANGE THIS FOR SUBSTRING SEARCH
 def has_words(aTestString, aKeyList):
@@ -64,7 +65,7 @@ def has_words(aTestString, aKeyList):
 
 def download_annotation_metadata():
 	'''
-	
+
 
 	Args:
 		None
@@ -79,9 +80,9 @@ def download_annotation_metadata():
 	scraper = BeautifulSoup(htmlAnnotations, "lxml")
 	tableElements = scraper.select('table')[-1]
 
-	# 
+	#
 	metadata = pd.read_html(str(tableElements), header=0)[0]
-	mask = metadata.Symbol.apply(lambda x: True) 
+	mask = metadata.Symbol.apply(lambda x: True)
 	mask.ix[[20,36]] = False
 	metadata = metadata[mask]
 	metadata['Symbol'] = metadata['Symbol'].astype(basestring)
@@ -94,7 +95,7 @@ def download_annotation_metadata():
 	metadata.loc[38, 'Symbol'] = 'P'
 	metadata.loc[39, 'Symbol'] = 'T'
 
-	
+
 	lut = {
 		'artifact':  ['artifact', 'Unclassified', 'Non-conducted', 'Fusion'],
 		'arrythmia': ['flutter', 'bigeminy', 'tachycardia', 'fibrillation'],
@@ -102,7 +103,7 @@ def download_annotation_metadata():
 		'signal':    ['Signal quality', 'Extreme noise', 'Missed beat', 'Pause', 'Tape slippage']
 	}
 
-	for i in lut.keys():	
+	for i in lut.keys():
 		metadata[i] = metadata.Meaning.apply(lambda x: has_words(x, lut[i]))
 
 	return metadata
@@ -137,7 +138,7 @@ def download_physionet_files( aDatabase='mghdb', aTargetDataDirectory='./data', 
 	dataElements = filter(lambda pageElement: re.search(extensionRegex, pageElement, re.I), hrefElements)
 	dataElements = sorted(dataElements)
 	downloadURLList = [urlPhysionetDB + dataLink for dataLink in dataElements]
-	
+
 	targetFileList = [os.path.join(aTargetDataDirectory, fileName) for fileName in dataElements]
 	i = 0
 	for dataURL, localDataFile in zip(downloadURLList, targetFileList):
@@ -157,8 +158,8 @@ def convert_physionet_data_to_csv( aDatabase, aSourceDirectory, aTargetDirectory
 	Convert raw data to CSV & TXT
 
 	Args:
-		aSourceDirectory : 
-		aTargetDirectory : 
+		aSourceDirectory :
+		aTargetDirectory :
 
 	Returns:
 		None
@@ -181,7 +182,7 @@ def convert_physionet_data_to_csv( aDatabase, aSourceDirectory, aTargetDirectory
 	numOpenFiles = 0
 
 	for rawDataFile in rawDataFiles:
-        
+
 		targetSample = targetSampleFile.format(name=rawDataFile)
 		if not os.path.isfile(targetSample) and not shouldClean:
 			print(targetSample)
@@ -208,11 +209,11 @@ def convert_physionet_data_to_csv( aDatabase, aSourceDirectory, aTargetDirectory
 
 	for conversionProcess in conversionProcesses:
 		conversionProcess.communicate()
- 
+
 
 def import_sample_data(aSampleFile):
 	'''
-	
+
 
 	Args:
 		aSampleFile :  CSV PHYSIONET data
@@ -227,10 +228,10 @@ def import_sample_data(aSampleFile):
 	dataframe = dataframe.ix[1:] # or, skip above
 	dataframe.reset_index(drop=True, inplace=True)
 
-	# Set data types	
+	# Set data types
 	dataframe.MLII_milliVolts = dataframe.MLII_milliVolts.astype(float)
 	dataframe.V5_milliVolts = dataframe.V5_milliVolts.astype(float)
-	
+
 	# Change the time to a zero base and apply as the index of the data frame
 	baseTime = datetime.strptime('00:00.00', '%M:%S.%f')
 	dataframe.index = dataframe.Elapsed_Microseconds.apply(lambda x: datetime.strptime(x[1:-1], '%M:%S.%f') - baseTime)
@@ -240,9 +241,9 @@ def import_sample_data(aSampleFile):
 
 def import_annotation_data(anAnnotationFile):
 	'''
-	
+
 	Args:
-		anAnnotationFile : 
+		anAnnotationFile :
 
 	Returns:
 		DataFrame
@@ -254,22 +255,22 @@ def import_annotation_data(anAnnotationFile):
 	baseTime = datetime.strptime('00:00.00', '%M:%S.%f')
 	dataframe.index = dataframe.Elapsed_Microseconds.apply(lambda x: datetime.strptime(x, '%M:%S.%f') - baseTime)
 	dataframe.drop('Elapsed_Microseconds', axis=1, inplace=True)
-	
+
 	dataframe.Sample_num = dataframe.Sample_num.astype(int)
 	dataframe.Sub = dataframe.Sub.astype(int)
 	dataframe.Chan = dataframe.Chan.astype(int)
 	dataframe.Num = dataframe.Num.astype(int)
-	
+
 	return dataframe
 
 
 def import_samples_and_annotations(aSampleCsvFile, anAnnotationTxtFile, aMetadataSet):
 	'''
-	
+
 
 	Args:
 		aSampleCsvFile : MIT-BIH file
-		anAnnotationTxtFile : 
+		anAnnotationTxtFile :
 
 	Returns:
 		Pandas data frame
@@ -279,7 +280,7 @@ def import_samples_and_annotations(aSampleCsvFile, anAnnotationTxtFile, aMetadat
 	sampleDataFrame = import_sample_data(aSampleCsvFile)
 	annotationDataFrame = import_annotation_data(anAnnotationTxtFile)
 	df = pd.concat([sampleDataFrame,annotationDataFrame], axis=1)
-	
+
 	#  Convert Type and Aux to integer values
 	# Labels from MIT-BIH site
 	arrythmiaSymbols = aMetadataSet[aMetadataSet.arrythmia].Symbol.tolist()
@@ -340,7 +341,7 @@ def generate_time_interval(aFormatString=None, hours=0, minutes=0, seconds=0, mi
 	'''
 
 	Args:
-		aFormatString 
+		aFormatString
 		hours 			: number of hours
 		minutes 		: number of minutes
 		seconds 		: number of seconds

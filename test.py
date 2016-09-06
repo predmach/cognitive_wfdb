@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Charles Pace 
+# Charles Pace
 
 # Copyright (c) 2016 Predictive Machines, LLC
 
@@ -11,8 +11,8 @@
 	load_all_data			- extract - physionet, translate - ml features, load - hdf5
 	extract_and_stage_ml	- load from hdf5, convert into features
 
-	exampleRandomForest		- build, train, classify, analyze 
-	exampleNeuralNet		- build, train, classify, analyze 
+	exampleRandomForest		- build, train, classify, analyze
+	exampleNeuralNet		- build, train, classify, analyze
 ]
 '''
 
@@ -58,11 +58,11 @@ def exampleKernelDensity(samples, labels, columns):
 	# use grid search cross-validation to optimize the bandwidth
 	params = {'bandwidth': np.logspace(-1, 1, 20)}
 
-	clf = KernelDensity() 
+	clf = KernelDensity()
 	x_train, x_val, y_train, y_val = \
 	    train_test_split(samples, labels, test_size=0.2,
 	                     random_state=np.random.randint(0, 100))
-	    
+
 	print('   running hyper parameter search and training...')
 	grid = hyperparameter_search(clf, params, x_train, y_train, x_val, y_val, columns)
 
@@ -78,11 +78,11 @@ def exampleRandomForest(samples, labels, columns):
 	    'n_jobs':              	[-1]
 	}
 
-	clf = RandomForestClassifier()# Let's run RandForest -> verify that 
+	clf = RandomForestClassifier()# Let's run RandForest -> verify that
 	x_train, x_val, y_train, y_val = \
 	    train_test_split(samples, labels, test_size=0.2,
 	                     random_state=np.random.randint(0, 100))
-	    
+
 	print('   running hyper parameter search and training...')
 	grid = hyperparameter_search(clf, params, x_train, y_train, x_val, y_val, columns)
 
@@ -95,7 +95,7 @@ def exampleNeuralNet(samples, labels, columns):
 
 	''' NeuralNet
 		TODO:
-			testTrainSplit - uniform selection 
+			testTrainSplit - uniform selection
 			unequal trining set (all normal data too)
 			autoencode on all data
 			set to verbose
@@ -113,15 +113,15 @@ def exampleNeuralNet(samples, labels, columns):
 	'''
 
 	params={
-		'learning_rate': [0.005], 
-		'hidden0__type': ['Rectifier'], 
-		'hidden0__units': [50], 
-		'hidden1__type': ['Rectifier'], 
+		'learning_rate': [0.005],
+		'hidden0__type': ['Rectifier'],
+		'hidden0__units': [50],
+		'hidden1__type': ['Rectifier'],
 		'hidden1__units': [200],
 		'hidden2__type': ['Tanh'],
 		'hidden2__units': [10]
 	}
-	
+
 	clf = SknnClassifier(
 		layers=[
 			SknnLayer("Rectifier", units=50),
@@ -155,8 +155,9 @@ def main():
 		os.mkdir('data')
 	except:
 		pass
+	setup_data_directories(mitdb_dir, stage_dir, hdf_dir)
 	'''
-	# setup_data_directories(mitdb_dir, stage_dir, hdf_dir)
+
 	df = load_all_data(mitdb_dir, stage_dir, hdf_dir, hdf_filename)
 
 	# create two sets of features to train on
@@ -169,12 +170,12 @@ def main():
 	exampleRandomForest(milivoltFeatures, labels, columns)
 	'''
 	df = load_all_data('mitdb',mitdb_dir, stage_dir, hdf_dir, hdf_filename)
-	'''
+
 	download_physionet_files('mitdb',mitdb_dir)
 	convert_physionet_data_to_csv('mitdb',mitdb_dir, stage_dir)
  	build_hdf5_data_store(stage_dir, hdf_filename)
  	df = pd.HDFStore(hdf_filename)
- 	'''
+
 	samples = extract_and_stage_ml(df,anEqualSampling=True, useCached=True)
 	print('isolate_max_var_features....')
 	maxVarFeatures, labels, columns = isolate_max_var_features(samples)
