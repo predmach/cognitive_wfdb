@@ -33,7 +33,7 @@ def fetchSampleDataWithAnnotations(aSourceDataDirectory, dbname, starttime, endt
     if not os.path.isdir(stageDir):
         if not os.path.isfile('cached_eq_ml_data.hdf'):
             download_file('https://s3.amazonaws.com/helios-wfdb-precompute/cached_eq_ml_data.hdf')
-        if not os.path.isfile(data.tar.gz):
+        if not os.path.isfile('data.tar.gz'):
             dataTar = download_file('https://s3.amazonaws.com/helios-wfdb-precompute/data.tar.gz')
             tfile = tarfile.open("data.tar.gz",'r:gz')
             tfile.extractall()
