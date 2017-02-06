@@ -14,7 +14,10 @@
 '''
 
 from __future__ import print_function, with_statement
-from StringIO import StringIO
+try:
+	from StringIO import StringIO
+except ImportError:
+	from io import StringIO
 import re
 
 import numpy as np

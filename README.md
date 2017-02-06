@@ -4,11 +4,11 @@ Load the data from the Physionet MIT-BIH ECG samples and annotations, convert th
 
 **Install ubuntu python support libaries**
  
-- sudo apt-get install python-pip
-- sudo apt-get install python-numpy
+- sudo apt-get install python3-pip
+- sudo apt-get install python3-numpy
 - # sudo apt-get install python-pandas # old version 
-- sudo pip install --upgrade pandas # installs version 0.18 (note I perform the prior step first so it was upgrade).
-- sudo pip install scikit-neuralnetwork
+- sudo pip3 install --upgrade pandas # installs version 0.18 (note I perform the prior step first so it was upgrade).
+- sudo pip3 install scikit-neuralnetwork
  
  
 
